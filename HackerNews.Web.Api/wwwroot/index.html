@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>HackerNews - Best Stories</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 24px;
+        }
+
+        label, input, button {
+            font-size: 1rem;
+        }
+
+        #results {
+            margin-top: 16px;
+        }
+
+        .story {
+            border-bottom: 1px solid #ddd;
+            padding: 8px 0;
+        }
+
+        .meta {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-weight: bold;
+        }
+
+        pre {
+            background: #f7f7f7;
+            padding: 8px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>HackerNews - Best Stories</h1>
+
+    <div>
+        <label for="count">Number of best stories to request:</label>
+        <input id="count" type="number" min="1" value="10" />
+        <button id="fetchBtn">Fetch</button>
+    </div>
+
+    <div id="results" aria-live="polite"></div>
+
+    <script>const fetchBtn = document.getElementById('fetchBtn');
+    const resultsEl = document.getElementById('results');
+
+    function clearResults() {
+      resultsEl.innerHTML = '';
+    }
+
+    function renderResult(result) {
+      // Show status and reason
+      const statusEl = document.createElement('div');
+      statusEl.className = 'status';
+      statusEl.textContent = `Status: ${result.status} ${result.reason ? ' — ' + result.reason : ''}`;
+      resultsEl.appendChild(statusEl);
+
+      if (!result.newsItems || result.newsItems.length === 0) {
+        const empty = document.createElement('div');
+        empty.textContent = 'No news items returned.';
+        resultsEl.appendChild(empty);
+        return;
+      }
+
+      // Render each DetailedNewsItem
+      result.newsItems.forEach(item => {
+        const s = document.createElement('div');
+        s.className = 'story';
+
+        const title = document.createElement('div');
+        const titleText = item.title || '(no title)';
+        if (item.url) {
+          const a = document.createElement('a');
+          a.href = item.url;
+          a.textContent = titleText;
+          a.target = '_blank';
+          title.appendChild(a);
+        } else {
+          title.textContent = titleText;
+        }
+        s.appendChild(title);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `Posted by: ${item.postedBy ?? 'unknown'} — Time: ${item.time ?? 'unknown'} — Score: ${item.score ?? 'n/a'} — Comments: ${item.commentCount ?? 'n/a'}`;
+        s.appendChild(meta);
+
+        resultsEl.appendChild(s);
+      });
+    }
+
+    async function fetchBestStories() {
+      clearResults();
+      const countInput = document.getElementById('count');
+      let count = parseInt(countInput.value, 10);
+      if (!Number.isFinite(count) || count < 1) count = 1;
+
+      const url = `/beststories?count=${encodeURIComponent(count)}`;
+
+      const loading = document.createElement('div');
+      loading.textContent = 'Loading...';
+      resultsEl.appendChild(loading);
+
+      try {
+        const resp = await fetch(url, { method: 'GET' });
+        if (!resp.ok) {
+          clearResults();
+          const err = document.createElement('div');
+          err.textContent = `HTTP error: ${resp.status} ${resp.statusText}`;
+          resultsEl.appendChild(err);
+          return;
+        }
+
+        const json = await resp.json();
+        clearResults();
+        // The server returns Result with property names matching C# record -> likely "newsItems","status","reason" (camelCase)
+        // but some JSON serializers may use PascalCase. Handle both by normalizing.
+        const normalized = {
+          newsItems: json.newsItems ?? json.NewsItems ?? [],
+          status: json.status ?? json.Status ?? '',
+          reason: json.reason ?? json.Reason ?? ''
+        };
+
+        renderResult(normalized);
+      } catch (ex) {
+        clearResults();
+        const err = document.createElement('div');
+        err.textContent = `Fetch failed: ${ex}`;
+        resultsEl.appendChild(err);
+      }
+    }
+
+    fetchBtn.addEventListener('click', fetchBestStories);
+
+    // Optional: allow Enter on the input
+    document.getElementById('count').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') fetchBestStories();
+    });</script>
+</body>
+</html>

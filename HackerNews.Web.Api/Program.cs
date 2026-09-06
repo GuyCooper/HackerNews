@@ -1,4 +1,3 @@
-
 using HackerNews.Common;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -29,6 +28,9 @@ builder.Services.AddSingleton(c =>
 
 
 var app = builder.Build();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
