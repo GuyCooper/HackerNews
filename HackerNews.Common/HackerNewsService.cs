@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace HackerNews.Common;
+namespace HackerNews.Common
 {
     public interface IHackerNewsService
     {
@@ -18,13 +18,16 @@ namespace HackerNews.Common;
 
         public async Task<IEnumerable<string>?> GetBestStoriesAsync()
         {
-            var result = await client.GetStringAsync("v0/beststories.json");
-            return JsonSerializer.Deserialize<IEnumerable<string>>(result);
+            var result = await client.GetStreamAsync("v0/beststories.json");
+            using var reader = new StreamReader(result);
+            return JsonSerializer.Deserialize<IEnumerable<string>>(reader.ReadToEnd());
         }
 
         public async Task<string?> GetStoryDetailsAsync(string storyId)
         {
-            return await client.GetStringAsync("v0/beststories.json");
+            var result = await client.GetStringAsync($"v0/item/{storyId}.json");
+            using var reader = new StreamReader(result);
+            return reader.ReadToEnd();
         }
     }
 }
