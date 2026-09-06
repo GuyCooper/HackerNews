@@ -2,13 +2,13 @@
 clone project to local repo.
 open command prompt and navigate to root folder
 
-to build
+to build:
 dotnet publish
 
-to run unit tests
+to run unit tests:
 dotnet test
 
-to run
+to run:
 dotnet run --project HackerNews.Web.Api
 
 Open url:
