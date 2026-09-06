@@ -52,7 +52,7 @@ public class HackerNewsClientService
         var stories = GetCachedStories(count);
         if (stories.Count >= count)
         {
-            return new Result(stories, ResultStatus.Success, string.Empty);
+            return new Result(stories.OrderByDescending(i => i.score), ResultStatus.Success, string.Empty);
         }
 
         var acquired = await _semaphore.WaitAsync(_semaphoreWaitTimeout);
@@ -67,7 +67,7 @@ public class HackerNewsClientService
             stories = GetCachedStories(count);
             if (stories.Count >= count)
             {
-                return new Result(stories, ResultStatus.Success, string.Empty);
+                return new Result(stories.OrderByDescending(i => i.score), ResultStatus.Success, string.Empty);
             }
 
             var bestStories = await _newsService.GetBestStoriesAsync() ?? Enumerable.Empty<int>();
@@ -111,7 +111,7 @@ public class HackerNewsClientService
             _semaphore.Release();
         }
 
-        return new Result(stories, ResultStatus.Success, string.Empty);
+        return new Result(stories.OrderByDescending(i => i.score), ResultStatus.Success, string.Empty);
     }
 
     private List<DetailedNewsItem> GetCachedStories(int count)
