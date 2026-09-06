@@ -18,9 +18,10 @@ public class HackerNewsClientService
     private readonly TimeSpan _cacheExpiryTimeout;
     private readonly int _maxStoryRequestCount;
 
-    // Back-compat constructor: creates an internal MemoryCache and uses default timeout (5s)
 
-    // DI-friendly constructor: inject IMemoryCache and optional semaphore wait timeout
+    /// <summary>
+    /// Inject Cache, newservice and optional configuration parameters. If not provided, default values will be used.
+    /// </summary>
     public HackerNewsClientService(IMemoryCache cache, 
                                    IHackerNewsService newsService,
                                    TimeSpan? cacheExpiryTimeout = null,
