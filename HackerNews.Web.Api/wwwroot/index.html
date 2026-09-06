@@ -62,7 +62,7 @@
       // Show status and reason
       const statusEl = document.createElement('div');
       statusEl.className = 'status';
-      statusEl.textContent = `Status: ${result.status} ${result.reason ? ' — ' + result.reason : ''}`;
+      statusEl.textContent = `Status: ${result.status} ${result.reason ? ' ï¿½ ' + result.reason : ''}`;
       resultsEl.appendChild(statusEl);
 
       if (!result.newsItems || result.newsItems.length === 0) {
@@ -92,7 +92,7 @@
 
         const meta = document.createElement('div');
         meta.className = 'meta';
-        meta.textContent = `Posted by: ${item.postedBy ?? 'unknown'} — Time: ${item.time ?? 'unknown'} — Score: ${item.score ?? 'n/a'} — Comments: ${item.commentCount ?? 'n/a'}`;
+        meta.textContent = `Posted by: ${item.postedBy ?? 'unknown'} ï¿½ Time: ${item.time ?? 'unknown'} ï¿½ Score: ${item.score ?? 'n/a'} ï¿½ Comments: ${item.commentCount ?? 'n/a'}`;
         s.appendChild(meta);
 
         resultsEl.appendChild(s);
