@@ -3,19 +3,6 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace HackerNews.Common;
 
-//Vendor supplied exchange rate service interface
-public interface IExchangeRateService
-{
-    Task<decimal?> GetSpotRateAsync(string code);
-}
-
-public enum ResultStatus
-{
-    Success,
-    Failed
-}
-
-public record Result(IEnumerable<string> NewsItems, ResultStatus Status, string Reason);
 
 /// <summary>
 /// Service wraps the call to the extenal service. Provides thread safe access to resource as well
@@ -24,12 +11,12 @@ public record Result(IEnumerable<string> NewsItems, ResultStatus Status, string 
 public class HackerNewsClientService
 {
     private readonly IMemoryCache _cache;
-    private readonly ConcurrentDictionary<string, byte> _cacheKeys = new(); // track keys because MemoryCache doesn't expose them
+    private readonly ConcurrentDictionary<int, byte> _cacheKeys = new(); // track keys because MemoryCache doesn't expose them
     private readonly IHackerNewsService _newsService;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly TimeSpan _semaphoreWaitTimeout;
     private readonly TimeSpan _cacheExpiryTimeout;
-    private readonly int _maxStoryCount;
+    private readonly int _maxStoryRequestCount;
 
     // Back-compat constructor: creates an internal MemoryCache and uses default timeout (5s)
 
@@ -38,21 +25,26 @@ public class HackerNewsClientService
                                    IHackerNewsService newsService,
                                    TimeSpan? cacheExpiryTimeout = null,
                                    TimeSpan? semaphoreWaitTimeout = null,
-                                   int? maxStoryCount = null
+                                   int? maxStoryRequestCount = null
         )
     {
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _newsService = newsService ?? throw new ArgumentNullException(nameof(newsService));
         _semaphoreWaitTimeout = semaphoreWaitTimeout ?? TimeSpan.FromSeconds(5);
         _cacheExpiryTimeout = cacheExpiryTimeout ?? TimeSpan.FromSeconds(30);
-        _maxStoryCount = maxStoryCount ?? 2000;
+        _maxStoryRequestCount = maxStoryRequestCount ?? 2000;
     }
 
     public async Task<Result> GetNewsItems(int count)
     {
         if (count <= 0)
         {
-            return new Result(Enumerable.Empty<string>(), ResultStatus.Success, string.Empty);
+            return new Result(Enumerable.Empty<DetailedNewsItem>(), ResultStatus.Success, string.Empty);
+        }
+
+        if(count > _maxStoryRequestCount)
+        {
+            return new Result(Enumerable.Empty<DetailedNewsItem>(), ResultStatus.Failed, "Request exceeds maximum allowed stories");
         }
 
         //If cache contains enough stories then return them, otherwise acquire the semaphore and fetch more.
@@ -77,7 +69,7 @@ public class HackerNewsClientService
                 return new Result(stories, ResultStatus.Success, string.Empty);
             }
 
-            var bestStories = await _newsService.GetBestStoriesAsync() ?? Enumerable.Empty<string>();
+            var bestStories = await _newsService.GetBestStoriesAsync() ?? Enumerable.Empty<int>();
 
             foreach (var story in bestStories)
             {
@@ -100,7 +92,7 @@ public class HackerNewsClientService
                         // Ensure keys are removed from our tracking dictionary when an entry is evicted
                         options.RegisterPostEvictionCallback((key, value, reason, state) =>
                         {
-                            if (key is string s)
+                            if (key is int s)
                             {
                                 _cacheKeys.TryRemove(s, out _);
                             }
@@ -121,14 +113,14 @@ public class HackerNewsClientService
         return new Result(stories, ResultStatus.Success, string.Empty);
     }
 
-    private List<string> GetCachedStories(int count)
+    private List<DetailedNewsItem> GetCachedStories(int count)
     {
-        var stories = new List<string>();
+        var stories = new List<DetailedNewsItem>();
 
         // Iterate tracked keys — remove keys whose cache entries have expired
         foreach (var key in _cacheKeys.Keys.ToList())
         {
-            if (_cache.TryGetValue(key, out var story) && story is string s)
+            if (_cache.TryGetValue(key, out var story) && story is DetailedNewsItem s)
             {
                 stories.Add(s);
                 if (stories.Count >= count)

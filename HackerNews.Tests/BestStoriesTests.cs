@@ -10,23 +10,23 @@ namespace HackerNews.Tests
     {
         private class FakeNewsService : IHackerNewsService
         {
-            public IList<string> BestStories { get; init; } = new List<string>();
-            public ConcurrentDictionary<string, int> DetailsCallCount { get; } = new();
+            public IList<int> BestStories { get; init; } = new List<int>();
+            public ConcurrentDictionary<int, int> DetailsCallCount { get; } = new();
             public TimeSpan DetailsDelay { get; init; } = TimeSpan.Zero;
 
-            public Task<IEnumerable<string>?> GetBestStoriesAsync()
+            public Task<IEnumerable<int>?> GetBestStoriesAsync()
             {
-                return Task.FromResult<IEnumerable<string>?>(BestStories);
+                return Task.FromResult<IEnumerable<int>?>(BestStories);
             }
 
-            public async Task<string?> GetStoryDetailsAsync(string storyId)
+            public async Task<DetailedNewsItem?> GetStoryDetailsAsync(int storyId)
             {
                 DetailsCallCount.AddOrUpdate(storyId, 1, (_, v) => v + 1);
                 if (DetailsDelay > TimeSpan.Zero)
                 {
                     await Task.Delay(DetailsDelay);
                 }
-                return $"details:{storyId}";
+                return new DetailedNewsItem("details:{storyId}",null,null,null,null,null);
             }
         }
 
@@ -35,7 +35,7 @@ namespace HackerNews.Tests
         {
             var fake = new FakeNewsService
             {
-                BestStories = new List<string> { "1", "2", "3" }
+                BestStories = new List<int> { 1,2,3 }
             };
 
             using var memoryCache = new MemoryCache(new MemoryCacheOptions());
@@ -56,7 +56,7 @@ namespace HackerNews.Tests
         {
             var fake = new FakeNewsService
             {
-                BestStories = new List<string> { "1", "2", "3" },
+                BestStories = new List<int> { 1,2,3 },
                 DetailsDelay = TimeSpan.FromMilliseconds(500) // make the first caller hold the semaphore
             };
 
@@ -82,7 +82,7 @@ namespace HackerNews.Tests
         {
             var fake = new FakeNewsService
             {
-                BestStories = new List<string> { "1", "2", "3", "4", "5" },
+                BestStories = new List<int> { 1,2,3,4,5 },
                 DetailsDelay = TimeSpan.FromMilliseconds(100)
             };
 
@@ -102,7 +102,7 @@ namespace HackerNews.Tests
             // Each task should have received 5 items
             foreach (var t in tasks)
             {
-                var result = t.Result;
+                var result = await t;
                 Assert.Equal(5, result.NewsItems.Count());
             }
         }
@@ -112,18 +112,18 @@ namespace HackerNews.Tests
         {
             var fake = new FakeNewsService
             {
-                BestStories = new List<string> { "1", "2", "3" }
+                BestStories = new List<int> { 1,2,3 }
             };
             using var memoryCache = new MemoryCache(new MemoryCacheOptions());
             var svc = new HackerNewsClientService(memoryCache, fake, cacheExpiryTimeout: TimeSpan.FromSeconds(1));
             // First call to populate cache
-            var r1 = svc.GetNewsItems(2).Result;
+            var r1 = await svc.GetNewsItems(2);
             Assert.Equal(2, r1.NewsItems.Count());
             Assert.Equal(2, fake.DetailsCallCount.Values.Sum());
             // Wait for cache to expire (assuming default expiration is set in the service)
             await Task.Delay(TimeSpan.FromSeconds(2));
             // Second call should fetch details again since cache expired
-            var r2 = svc.GetNewsItems(2).Result;
+            var r2 = await svc.GetNewsItems(2);
             Assert.Equal(2, r2.NewsItems.Count());
             Assert.Equal(4, fake.DetailsCallCount.Values.Sum()); // Should have fetched details again
         }

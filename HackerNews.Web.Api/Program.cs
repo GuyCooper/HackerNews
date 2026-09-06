@@ -1,9 +1,32 @@
+
+using HackerNews.Common;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.Configure<HackerNewsConfiguration>(
+    builder.Configuration.GetSection(nameof(HackerNewsConfiguration)));
+
+builder.Services.AddMemoryCache();
+builder.Services.AddTransient<IHackerNewsService, HackerNewsService>();
+builder.Services.AddSingleton(c =>
+{
+    var configuration = c.GetRequiredService<IOptions<HackerNewsConfiguration>>().Value;
+    var cache = c.GetRequiredService<IMemoryCache>();
+    var newsService = c.GetRequiredService<IHackerNewsService>();
+
+    return new HackerNewsClientService(cache, newsService,
+        configuration.CacheExpiryTimeoutSeconds.HasValue ? TimeSpan.FromSeconds(configuration.CacheExpiryTimeoutSeconds.Value) : null,
+        configuration.SemaphoreWaitTimeoutSeconds.HasValue ? TimeSpan.FromSeconds(configuration.SemaphoreWaitTimeoutSeconds.Value) : null,
+        configuration.MaxStoryRequestCount);
+});
+
 
 var app = builder.Build();
 
@@ -16,29 +39,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapGet("/beststories", 
+    (HackerNewsClientService newsService, int count) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    return newsService.GetNewsItems(count);
 })
-.WithName("GetWeatherForecast")
+.WithName("GetBestStories")
 .WithOpenApi();
 
 app.Run();
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
