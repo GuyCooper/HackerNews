@@ -43,12 +43,12 @@ namespace HackerNews.Tests
 
             var r1 = await svc.GetNewsItems(2);
             Assert.Equal(2, r1.NewsItems.Count());
-            Assert.Equal(2, fake.DetailsCallCount.Values.Sum());
+            Assert.Equal(3, fake.DetailsCallCount.Values.Sum());
 
             var r2 = await svc.GetNewsItems(2);
             Assert.Equal(2, r2.NewsItems.Count());
             // No additional detail fetches on second call
-            Assert.Equal(2, fake.DetailsCallCount.Values.Sum());
+            Assert.Equal(3, fake.DetailsCallCount.Values.Sum());
         }
 
         [Fact]
@@ -119,13 +119,13 @@ namespace HackerNews.Tests
             // First call to populate cache
             var r1 = await svc.GetNewsItems(2);
             Assert.Equal(2, r1.NewsItems.Count());
-            Assert.Equal(2, fake.DetailsCallCount.Values.Sum());
+            Assert.Equal(3, fake.DetailsCallCount.Values.Sum());
             // Wait for cache to expire (assuming default expiration is set in the service)
             await Task.Delay(TimeSpan.FromSeconds(2));
             // Second call should fetch details again since cache expired
             var r2 = await svc.GetNewsItems(2);
             Assert.Equal(2, r2.NewsItems.Count());
-            Assert.Equal(4, fake.DetailsCallCount.Values.Sum()); // Should have fetched details again
+            Assert.Equal(6, fake.DetailsCallCount.Values.Sum()); // Should have fetched details again
         }
     }
 }

@@ -23,7 +23,8 @@ builder.Services.AddSingleton(c =>
     return new HackerNewsClientService(cache, newsService,
         configuration.CacheExpiryTimeoutSeconds.HasValue ? TimeSpan.FromSeconds(configuration.CacheExpiryTimeoutSeconds.Value) : null,
         configuration.SemaphoreWaitTimeoutSeconds.HasValue ? TimeSpan.FromSeconds(configuration.SemaphoreWaitTimeoutSeconds.Value) : null,
-        configuration.MaxStoryRequestCount);
+        configuration.MaxStoryRequestCount,
+        configuration.MaxDegreeOfParallelism);
 });
 
 
